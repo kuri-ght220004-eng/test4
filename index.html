@@ -60,27 +60,57 @@ button{font-family:inherit;cursor:pointer}
 .detail-note{font-size:13px;color:#666;background:#f8f7f4;border-radius:8px;padding:10px;margin-bottom:12px;line-height:1.6}
 .loading{text-align:center;padding:3rem;color:#aaa;font-size:14px}
 @media(max-width:700px){
-  .wrap{padding:0.4rem 4px}
+  /* header/nav: 화면 너비에 맞게 */
+  .wrap{padding:0.4rem 4px;overflow-x:hidden}
   .title{font-size:15px}
   .subtitle{font-size:11px}
   .cal-month{font-size:14px}
-  .header{margin-bottom:0.5rem;gap:6px}
+  .header{margin-bottom:0.5rem;gap:4px}
   .cal-nav{margin-bottom:0.5rem;gap:8px}
   .mode-badge{font-size:10px;padding:3px 7px}
   .auth-btn{font-size:10px;padding:4px 8px}
   .nav-btn{width:26px;height:26px;font-size:14px}
   .legend{display:none}
-  /* 가로 스크롤 래퍼 */
-  .cal-scroll-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px}
-  /* 그리드: 고정 너비 (JS가 주입) */
-  .grid{gap:3px;width:var(--grid-w,700px);min-width:var(--grid-w,700px)}
-  .day-label{font-size:10px;padding:4px 0;width:var(--cell-w,96px)}
-  /* 셀: 고정 너비, 넉넉한 패딩 */
-  .day-cell{min-height:70px;width:var(--cell-w,96px);min-width:var(--cell-w,96px);padding:4px 3px;border-radius:4px}
-  .day-num{font-size:10px;margin-bottom:2px;text-align:left;line-height:1.2}
-  /* 폰트: JS 주입 */
-  .event-chip{font-size:var(--chip-fs,8px);padding:1px 3px;border-radius:2px;margin-bottom:1px;line-height:1.3}
-  .more-ev{font-size:var(--chip-fs,8px);padding:0;line-height:1.3}
+  /* ── 스크롤 래퍼: 이 안에서만 가로 스크롤 ── */
+  .cal-scroll-wrap{
+    width:100%;
+    overflow-x:scroll;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:8px;
+    /* 스크롤바 항상 표시 (모바일 인지용) */
+    scrollbar-width:thin;
+  }
+  /* ── 그리드: JS가 너비 주입, 절대 줄어들지 않음 ── */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(7, var(--cell-w, 100px));
+    gap:3px;
+    width:max-content;
+    min-width:max-content;
+  }
+  .day-label{
+    font-size:10px;padding:4px 0;
+    width:var(--cell-w,100px);
+    min-width:var(--cell-w,100px);
+    text-align:center;
+  }
+  .day-cell{
+    width:var(--cell-w,100px);
+    min-width:var(--cell-w,100px);
+    min-height:80px;
+    padding:4px 4px;
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .day-num{font-size:10px;margin-bottom:2px;line-height:1.2}
+  .event-chip{
+    font-size:var(--chip-fs,8px);
+    padding:1px 3px;
+    border-radius:2px;
+    margin-bottom:1px;
+    line-height:1.35;
+  }
+  .more-ev{font-size:var(--chip-fs,8px);line-height:1.35}
 }
 </style>
 </head>
@@ -432,29 +462,29 @@ window.closeModal = function() { document.getElementById('modal-area').innerHTML
 function applyMobileGrid() {
   if (window.innerWidth > 700) return;
 
-  const TARGET_CHARS = 12; // 셀당 목표 글자 수
-  const GAP   = 3;
-  const COLS  = 7;
-  const PAD   = 8; // 셀 좌우 패딩 합계(px)
+  // 목표: 셀 한 칸에 한글 10글자 이상 표시
+  // 한글 전각 1글자 = fontSize * 약 1.0px
+  // 폰트 8px 기준: 10글자 = 80px + 패딩 8px = 88px 셀
+  // → 7열 × 88px + gap 18px = 634px (390px 화면에서 좌우 스크롤)
+  const CHIP_FS  = 8;   // px — 읽기 가능한 최소 폰트
+  const TARGET   = 13;  // 목표 글자 수
+  const PAD      = 8;   // 셀 좌우 패딩 합계
+  const GAP      = 3;   // 열 간격
+  const COLS     = 7;
 
-  // 12글자가 들어오는 폰트 크기 결정 (한글 전각 ≈ fontSize * 1.0px)
-  // 최소 7px, 최대 10px 사이에서 읽기 좋은 크기로
-  const chipFs = 8; // 8px 고정: 390px폰 기준 약 84px 셀에 12글자 가능
-
-  // 셀 너비: chipFs * TARGET_CHARS + 패딩
-  const cellW  = chipFs * TARGET_CHARS + PAD;
-  const gridW  = cellW * COLS + GAP * (COLS - 1);
-  const cellH  = Math.round(cellW * 1.3);
+  const cellW  = CHIP_FS * TARGET + PAD;          // 88px
+  const gridW  = cellW * COLS + GAP * (COLS - 1); // 634px
 
   const root = document.documentElement;
-  root.style.setProperty('--chip-fs', chipFs + 'px');
-  root.style.setProperty('--cell-w',  cellW  + 'px');
-  root.style.setProperty('--grid-w',  gridW  + 'px');
+  root.style.setProperty('--chip-fs', CHIP_FS + 'px');
+  root.style.setProperty('--cell-w',  cellW + 'px');
 
-  // 셀 높이도 동적 적용
-  document.querySelectorAll('.day-cell').forEach(el => {
-    el.style.minHeight = cellH + 'px';
-  });
+  // 그리드 요소 너비 직접 지정 (CSS max-content 보완)
+  const gridEl = document.getElementById('cal-grid');
+  if (gridEl) {
+    gridEl.style.width    = gridW + 'px';
+    gridEl.style.minWidth = gridW + 'px';
+  }
 }
 window.addEventListener('resize', applyMobileGrid);
 const _origRenderGrid = renderGrid;
@@ -462,6 +492,7 @@ renderGrid = function() {
   _origRenderGrid();
   requestAnimationFrame(applyMobileGrid);
 };
+// 초기 실행
 applyMobileGrid();
 
 // ── 초기화 ──────────────────────────────────────────
